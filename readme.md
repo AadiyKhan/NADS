@@ -1,123 +1,170 @@
-Real-Time Network Anomaly Detection System (NIDS) with MLOps
-============================================================
+# Real-Time Network Anomaly Detection System (NIDS) with MLOps
 
-This project implements a complete, end-to-end Machine Learning Operations (MLOps) pipeline for **real-time network anomaly detection**. It utilizes an **Autoencoder Neural Network** for detecting zero-day attacks and leverages **Apache Kafka** for high-throughput data ingestion, all containerized with **Docker Compose**.
+A complete, end-to-end **Machine Learning Operations (MLOps)** pipeline for real-time network anomaly detection using an **Autoencoder Neural Network** and **Apache Kafka**. The system simulates a production-level **Security Operations Center (SOC)** with real-time streaming, inference, and alerting.
 
-🎯 Project Goal
----------------
+* * *
 
-The primary goal was to build a low-latency system that can consume a stream of network flow data, identify anomalous (attack) traffic in real-time, and alert the user, simulating a production Security Operations Center (SOC) environment.
+##  Project Goal
 
-🛠️ Technology Stack
---------------------
+Build a **low-latency anomaly detection system** capable of consuming live network flow data, detecting zero-day attacks using an Autoencoder, and raising alerts in real time.
 
-CategoryTechnologyPurpose**Data StreamingApache Kafka (Docker)**High-throughput, fault-tolerant message broker for real-time flow ingestion.**CoordinationApache Zookeeper (Docker)**Manages the configuration and state of the Kafka cluster.**ModelTensorFlow / Keras**Built the Autoencoder Neural Network.**Data SciencePython, Pandas, Scikit-learn**Data cleaning, preprocessing, and model scaling.**DeploymentPython (Prediction Service)**Consumes from Kafka, loads the model, and performs real-time inference.**ContainerizationDocker Compose**Orchestrates and manages the Kafka and Zookeeper services.Export to Sheets
+* * *
 
-💻 Architecture Overview
-------------------------
+##  Technology Stack
 
-The system is designed as a pipeline with decoupled microservices, enabling scalability and resilience.
+| Category | Technology | Purpose |
+| --- | --- | --- |
+| Data Streaming | Apache Kafka (Docker) | Real-time, fault-tolerant message streaming |
+| Coordination | Apache Zookeeper (Docker) | Kafka cluster coordination |
+| Model Development | TensorFlow / Keras | Autoencoder Neural Network |
+| Data Science | Python, Pandas, Scikit-learn | Preprocessing & feature engineering |
+| Deployment | Python Prediction Service | Real-time Kafka consumer + inference |
+| Containerization | Docker Compose | Orchestrates all services |
 
-1.  **Data Source:** Cleaned **CIC-IDS 2017** dataset.
+### Components Summary
+
+*   **Data Source:** Cleaned CIC-IDS 2017 dataset
     
-2.  **Producer (2\_producer\_service.py):** Reads the static CSV file and simulates a live network, sending records to Kafka one-by-one.
+*   **Producer (`2_producer_service.py`):** Streams rows from CSV → Kafka topic `network_flows`
     
-3.  **Kafka Broker:** Holds the stream of network flows in the network\_flows topic.
+*   **Kafka Broker:** Stores & streams messages
     
-4.  **Prediction Service (4\_prediction\_service.py):** Acts as the **Consumer**. It continuously pulls data from Kafka, performs preprocessing, runs the Autoencoder model for inference, and issues alerts.
+*   **Prediction Service (`4_prediction_service.py`):**
     
+    *   Consumes Kafka stream
+        
+    *   Preprocesses using `scaler.pkl`
+        
+    *   Runs Autoencoder model
+        
+    *   Flags anomalies using reconstruction error threshold
+        
 
-📂 Project Phases & Key Outcomes
---------------------------------
+* * *
+
+##  Project Phases & Outputs
 
 ### Phase 1: Data Preprocessing
 
-*   Merged 10+ raw CSV files into a single, clean dataset, handling **2.5 million records**.
+*   Combined 10+ raw CSV files (**~2.5M rows**).
     
-*   Cleaned data by removing **NaNs, Inf values**, and dropping duplicates.
+*   Removed NaN, Inf, and duplicates.
     
-*   Transformed the problem into a binary classification task (0=Normal, 1=Anomaly).
+*   Converted the multi-class problem to **binary classification** (0 = Normal, 1 = Anomaly).
     
 
-### Phase 2: Data Engineering Pipeline Setup
+### Phase 2: Data Engineering
 
-*   Deployed a robust Kafka/Zookeeper environment using docker-compose.yml.
+*   Built Kafka + Zookeeper environment using Docker Compose.
     
-*   Developed the **Producer Service** to stream the dataset into the Kafka topic network\_flows.
+*   Implemented Producer to stream records into Kafka topic `network_flows`.
     
 
 ### Phase 3: Model Development
 
-*   **Feature Engineering:** Applied **StandardScaling** and **One-Hot Encoding** to prepare 78 features for the neural network.
+*   Performed Standard Scaling + One-Hot Encoding (78 features).
     
-*   **Model:** Developed and trained an **Autoencoder Neural Network** (input size 78, bottleneck size 8) exclusively on normal traffic.
+*   Designed Autoencoder with **bottleneck size 8**.
     
-*   **Output:** Saved the essential artifacts for deployment:
+*   Trained **only on normal traffic** to learn reconstruction patterns.
     
-    *   anomaly\_autoencoder.h5 (Trained Model)
+*   Exported artifacts:
+    
+    *   `anomaly_autoencoder.h5` (Trained Model)
         
-    *   scaler.pkl (Fitted Scaler for live preprocessing)
+    *   `scaler.pkl` (Fitted Scaler for live preprocessing)
         
-    *   anomaly\_threshold.txt (Decision boundary based on the 95th percentile of normal reconstruction error).
+    *   `anomaly_threshold.txt` (Decision boundary set at the 95th percentile of normal reconstruction error).
         
 
 ### Phase 4: Real-Time Deployment
 
-*   Created the **Prediction Service** which loads the model artifacts at runtime.
+*   Prediction Service loads model & scaler at startup.
     
-*   The service consumes records from Kafka, applies the saved scaler.pkl for **live transformation**, calculates the **Reconstruction Error (MSE)**, and flags the flow as an **🚨 ANOMALY ALERT!** if the MSE exceeds the learned threshold.
+*   Computes reconstruction error (MSE) in real time for every incoming flow.
+    
+*   Raises **🚨 ANOMALY ALERT!** for high MSE values, demonstrating live detection.
     
 
-🚀 Setup and Run Instructions
------------------------------
+* * *
 
-To replicate this project, follow these steps:
+##  Setup & Running the System
 
 ### 1\. Prerequisites
 
-*   **Python 3.8+**
+*   Python 3.8+
     
-*   **Docker Desktop** (Required for Kafka/Zookeeper)
-    
-
-### 2\. Setup
-
-1.  Bashgit clone \[YOUR-REPO-LINK\]cd \[YOUR-REPO-NAME\]
-    
-2.  Bashpython -m venv .venv# Windows PowerShell:.\\.venv\\Scripts\\Activate.ps1# Linux/macOS:source .venv/bin/activate
-    
-3.  Bashpip install -r requirements.txt_(Note: Create this file using pip freeze > requirements.txt after installing all project libraries: pandas, numpy, scikit-learn, tensorflow, kafka-python)_
+*   Docker Desktop
     
 
-### 3\. Start Infrastructure (Kafka/Zookeeper)
+### 2\. Cloning and Setup
 
-Start the streaming platform in detached mode:
+1.  **Clone the Repository:**
+    
+    Bash
+    
+        git clone https://github.com/AadiyKhan/NADS.git
+        cd https://github.com/AadiyKhan/NADS.git
+    
+2.  **Create a Virtual Environment:**
+    
+    Bash
+    
+        python -m venv .venv
+    
+    Activate it:
+    
+    Bash
+    
+        # Windows:
+        .\.venv\Scripts\Activate.ps1
+        # Linux/macOS:
+        source .venv/bin/activate
+    
+3.  **Install dependencies:**
+    
+    Bash
+    
+        pip install -r requirements.txt
+    
+
+* * *
+
+### 3\. Start Kafka Infrastructure
+
+1.  Start the streaming platform:
+    
+    Bash
+    
+        docker compose up -d
+    
+2.  Visit Kafka UI: `http://localhost:8080`
+    
+3.  **Create topic:** Manually create the topic named `network_flows`.
+    
+
+* * *
+
+### 4\. Run the Full Pipeline
+
+Open **two terminals** (with the virtual environment activated).
+
+**Terminal 1 — Prediction Service (The Detector):**
 
 Bash
 
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   docker compose up -d   `
+    python 4_prediction_service.py
 
-Verify the services are running by visiting **http://localhost:8080** (Kafka-UI). You must manually create the topic named network\_flows in the UI.
-
-### 4\. Run the Pipeline
-
-Open **two separate terminal windows** (both with the virtual environment activated).
-
-**Terminal 1: Start Prediction Service (The Anomaly Detector)**
+**Terminal 2 — Data Producer (The Simulated Network):**
 
 Bash
 
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   python 4_prediction_service.py   `
+    python 2_producer_service.py
 
-**Terminal 2: Start Data Stream (The Simulated Network)**
+You will see continuous MSE values and **🚨 ANOMALY ALERT!** messages when attacks are detected in the stream.
 
-Bash
+* * *
 
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   python 2_producer_service.py   `
+##  Contribution
 
-You will see the Prediction Service start printing the Mean Squared Error (MSE) for each flow. When an attack record is streamed, the MSE will spike, triggering the **🚨 ANOMALY ALERT!** message, confirming successful detection.
-
-🤝 Contribution
----------------
-
-This project is maintained by \[Your Name\] / \[Your GitHub Username\]. Feel free to submit issues or pull requests!
+Maintained by Aadiy Khan. Pull requests and issues are welcome.
